@@ -1,0 +1,281 @@
+package sample;
+
+import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+import javafx.animation.AnimationTimer;
+import javafx.stage.Stage;
+import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+
+public class Snake  {
+    // variable
+    static int score = 0;
+    static int foodcolor = 0;
+    static int width = 20;
+    static int height = 20;
+    static int foodX = 0;
+    static int foodY = 0;
+    static int cornersize = 25;
+    static List<Corner> snake = new ArrayList<>();
+    static Dir direction = Dir.left;
+    static boolean gameOver = false;
+    static Random rand = new Random();
+
+    private boolean right = false;
+    private boolean left = false;
+    private boolean up = false;
+    private boolean down = false;
+
+    public enum Dir {
+        left, right, up, down
+    }
+
+    public void start(Stage primaryStage) {
+        try {
+            newFood();
+
+            VBox root = new VBox();
+            Canvas c = new Canvas(width * cornersize, height * cornersize);
+            GraphicsContext gc = c.getGraphicsContext2D();
+            root.getChildren().add(c);
+
+            new AnimationTimer() {
+                long lastTick = 0;
+
+                public void handle(long now) {
+                    if (lastTick == 0) {
+                        lastTick = now;
+                        tick(gc);
+                        return;
+                    }
+
+                    if (now - lastTick > 100000000) {
+                        lastTick = now;
+                        tick(gc);
+                    }
+                }
+
+            }.start();
+
+            Scene scene = new Scene(root, width * cornersize, height * cornersize);
+
+            // control
+            scene.addEventFilter(KeyEvent.KEY_PRESSED, key -> {
+
+                if (key.getCode() == KeyCode.UP) {
+                    up = true;
+                    if(!down){
+                        up=true;
+                        direction = Dir.up;
+                    }else{
+                        up=false;
+                        down=true;
+                        direction = Dir.down;                    }
+                    right = false;
+                    left = false;
+                }
+                if (key.getCode() == KeyCode.LEFT) {
+                    left = true;
+                    if(!right){
+                        left=true;
+                        direction = Dir.left;
+                    }else{
+                        left=false;
+                        right=true;
+                        direction = Dir.right;
+                    }
+                    up = false;
+                    down = false;
+                }
+                if (key.getCode() == KeyCode.DOWN) {
+                    down = true;
+                    if(!up){
+                        down=true;
+                        direction = Dir.down;
+                    }else{
+                        down=false;
+                        up=true;
+                        direction = Dir.up;
+                    }
+                    right = false;
+                    left = false;
+                }
+                if (key.getCode() == KeyCode.RIGHT) {
+                    right = true;
+                    if(!left){
+                        right=true;
+                        direction = Dir.right;
+                    }else{
+                        right=false;
+                        left=true;
+                        direction = Dir.left;
+                    }
+                    up = false;
+                    down = false;
+                }
+
+            });
+
+            // add start snake parts
+            snake.add(new Corner(width / 2, height / 2));
+            snake.add(new Corner(width / 2, height / 2));
+            snake.add(new Corner(width / 2, height / 2));
+
+            primaryStage.setScene(scene);
+            primaryStage.setTitle("SNAKE GAME");
+            primaryStage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // tick
+    public static void tick(GraphicsContext gc) {
+        if (gameOver) {
+            gc.setFill(Color.RED);
+            gc.setFont(new Font("arial", 50));
+            gc.fillText("GAME OVER", 100, 250);
+            gc.setFont(new Font("arial", 30));
+            gc.fillText("Your score: "+score, 150,150);
+            gc.setFill(Color.GREENYELLOW);
+            return;
+
+        }
+        try{
+            FileWriter fw = new FileWriter("output.txt");
+            fw.write(String.valueOf("Your last score is: "+score));
+            fw.close();
+        }catch (Exception e) {
+            return;
+        }
+
+
+        for (int i = snake.size() - 1; i >= 1; i--) {
+            snake.get(i).x = snake.get(i - 1).x;
+            snake.get(i).y = snake.get(i - 1).y;
+        }
+
+        switch (direction) {
+            case up:
+                snake.get(0).y--;
+                if (snake.get(0).y < 0) {
+                    snake.get(0).y=height;
+                }
+                break;
+            case down:
+                snake.get(0).y++;
+                if (snake.get(0).y > height) {
+                    snake.get(0).y=0;
+                }
+                break;
+            case left:
+                snake.get(0).x--;
+                if (snake.get(0).x < 0) {
+                    snake.get(0).x=width;
+                }
+                break;
+            case right:
+                snake.get(0).x++;
+                if (snake.get(0).x > width) {
+                    snake.get(0).x=0;
+                }
+                break;
+
+        }
+
+        // eat food
+        if (foodX == snake.get(0).x && foodY == snake.get(0).y) {
+            snake.add(new Corner(-1, -1));
+            score++;
+            newFood();
+        }
+
+        // self destroy
+        for (int i = 1; i < snake.size(); i++) {
+            if (snake.get(0).x == snake.get(i).x && snake.get(0).y == snake.get(i).y) {
+                gameOver = true;
+            }
+        }
+
+        // fill
+        // background
+        gc.setFill(Color.BLACK);
+        gc.fillRect(0, 0, width * cornersize, height * cornersize);
+
+        // score
+        gc.setFill(Color.WHITE);
+        gc.setFont(new Font("arial", 30));
+        gc.fillText("Score: " + score, 10, 30);
+
+        // random foodcolor
+        Color cc = Color.WHITE;
+
+        switch (foodcolor) {
+            case 0:
+                cc = Color.GREEN;
+                break;
+            case 1:
+                cc = Color.RED;
+                break;
+            case 2:
+                cc = Color.YELLOW;
+                break;
+            case 3:
+                cc = Color.PINK;
+                break;
+            case 4:
+                cc = Color.ORANGE;
+                break;
+        }
+        gc.setFill(cc);
+        gc.fillOval(foodX * cornersize, foodY * cornersize, cornersize, cornersize);
+
+        // snake
+        for (Corner c : snake) {
+            gc.setFill(Color.BLUE);
+            gc.fillOval(c.x * cornersize, c.y * cornersize, cornersize - 1, cornersize - 1);
+            gc.setFill(Color.LIGHTBLUE);
+            gc.fillOval(c.x * cornersize, c.y * cornersize, cornersize - 2, cornersize - 2);
+        }
+    }
+    public String snakeColor(String color){
+        int c=0;
+        for (int i = 0; i <color.length() ; i++) {
+            Boolean digit=Character.isDigit(color.charAt(i));
+            if (digit) c++;
+        }
+        if(color.isEmpty()){
+            return "This snake has no color";
+        }else if(color.length()>20 || color.length()<3){
+            return "It is not a valid color name";
+        }else if(c!=0) {
+            return "Color shouldn't contain any digits";
+        }
+        return "This snake is "+color;
+    }
+    // food
+    public static void newFood() {
+        start: while (true) {
+            foodX = rand.nextInt(width);
+            foodY = rand.nextInt(height);
+
+            for (Corner c : snake) {
+                if (c.x == foodX && c.y == foodY) {
+                    continue start;
+                }
+            }
+            foodcolor = rand.nextInt(5);
+            //speed++;
+            break;
+        }
+    }
+}
